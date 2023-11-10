@@ -27,6 +27,7 @@
         @else
             <div class="row">
                 <div class="col-12">
+                    <h5>Confirmed players: {{ $resp->confirmed }}</h5>
                     <h5>Number of teams: {{ $resp->teams }}</h5>
                     <h5>Players per team: {{ $resp->numbP }}</h5>
                 </div>
@@ -47,7 +48,7 @@
                                     </tr>
                                     @foreach($team['players'] as $p => $player)
                                         <p class="card-text">
-                                            <tr>
+                                            <tr @if($player["isGoalkeeper"] == 1)class="text-success font-weight-bold" @endif>
                                                 <td>{{ $p + 1 }}</td>
                                                 <td>{{ $player['name'] }}</td>
                                                 <td>{{ $player['level'] }}</td>
