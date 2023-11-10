@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\PlayersController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -15,4 +16,9 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('welcome');
+});
+Route::resource('players', PlayersController::class);
+Route::group(['prefix' => 'teams', 'as', 'teams.'], function () {
+    Route::get('teams', [PlayersController::class, 'teams'])->name('teams');
+    Route::post('sort', [PlayersController::class, 'sort'])->name('sort');
 });
