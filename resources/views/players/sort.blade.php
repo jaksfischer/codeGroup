@@ -26,9 +26,14 @@
             </div>
         @else
             <div class="row">
-                <div class="col-12">
+                <h4>Statistics</h4>
+                <div class="col-3">
                     <h5>Confirmed players: {{ $resp->confirmed }}</h5>
+                </div>
+                <div class="col-3">
                     <h5>Number of teams: {{ $resp->teams }}</h5>
+                </div>
+                <div class="col-3">
                     <h5>Players per team: {{ $resp->numbP }}</h5>
                 </div>
                 @foreach($resp->data as $key => $team)
