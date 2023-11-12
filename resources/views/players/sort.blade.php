@@ -41,10 +41,11 @@
                         <div class="card mb-4">
                             <div class="card-body">
                                 <h5 class="card-title">Team {{ $key + 1 }}</h5>
-                                @if(isset($team['goalkeeper']))
-                                    <p class="card-text text-success font-weight-bold">Goalkeeper: {{ $team['goalkeeper']['name'] }}</p>
+                                @if(isset($team['players'][0]) && is_object($team['players'][0]))
+                                    @if($team['players'][0]->isGoalkeeper == 1)
+                                        <p class="card-text text-success font-weight-bold">Goalkeeper: {{ $team['players'][0]->name }}</p>
+                                    @endif
                                 @endif
-                                <p class="card-text">Players:</p>
                                 <table>
                                     <tr>
                                         <td width="10%"><b>Player</b></td>
@@ -52,13 +53,13 @@
                                         <td width="10%"><b>Level</b></td>
                                     </tr>
                                     @foreach($team['players'] as $p => $player)
-                                        <p class="card-text">
-                                            <tr @if($player["isGoalkeeper"] == 1)class="text-success font-weight-bold" @endif>
+                                        @if(is_object($player))
+                                            <tr @if($player->isGoalkeeper == 1)class="text-success font-weight-bold" @endif>
                                                 <td>{{ $p + 1 }}</td>
-                                                <td>{{ $player['name'] }}</td>
-                                                <td>{{ $player['level'] }}</td>
+                                                <td>{{ $player->name }}</td>
+                                                <td>{{ $player->level }}</td>
                                             </tr>
-                                        </p>
+                                        @endif
                                     @endforeach
                                 </table>
                             </div>
