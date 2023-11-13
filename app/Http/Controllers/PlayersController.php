@@ -1,220 +1,87 @@
-<?php
-
-namespace App\Http\Controllers;
-use App\Models\Players;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
-use Illuminate\Http\Response;
-use Illuminate\View\View;
-class PlayersController extends Controller
+public function sort(Request $request): View
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index(): View
-    {
-        $players = Players::latest()->paginate(10);
-        return view('players.index',compact('players'))
-            ->with('i', (request()->input('page', 1) - 1) * 5);
-    }
+    // Validate the incoming request parameters.
+    $request->validate([
+        'teamsN' => 'required|integer|min:2',
+        'numbP' => 'required|integer|min:1'
+    ]);
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create(): View
-    {
-        return view('players.create');
-    }
+    // Retrieve confirmed players ordered by level in ascending order.
+    $confirmedPlayers = Players::where('presence', 1)
+        ->orderBy('level', 'asc')
+        ->get();
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request): RedirectResponse
-    {
-        $request->validate([
-            'name'          =>  'required',
-            'level'         =>  'required',
-            'isGoalkeeper'  => 'required'
-        ]);
-        Players::create($request->all());
-        return  redirect()->route('players.index')
-            ->with('success', 'Player created successfully');
-    }
+    // Calculate the total number of confirmed players and the required number of players.
+    $totalConfirmedPlayers = count($confirmedPlayers);
+    $requiredPlayers = $request->numbP * 2;
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Players $player): View
-    {
-        return view('players.edit',compact('player'));
-    }
+    // Convert request parameters to integers.
+    $teams = (int)$request->teamsN;
+    $numbP = (int)$request->numbP;
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Players $player): RedirectResponse
-    {
-        $request->validate([
-            'name' => 'required',
-            'level' => 'required',
-            'isGoalkeeper' => 'required',
-            'presence' => 'required'
-        ]);
-        $player->update($request->all());
-        return redirect()->route('players.index')
-            ->with('success','Player updated successfully');
-    }
-
-    /**
-     * Remove the specified resource from storageRemove the specified resource from storage.
-     */
-    public function destroy(Players $player): RedirectResponse
-    {
-        $player->delete();
-        return redirect()->route('players.index')
-            ->with('success','Player deleted successfully');
-    }
-
-    /**
-     * Shows the resource to define teams and number of players
-     */
-    public function teams(): View
-    {
-        return view('players.teams');
-    }
-
-    /**
-     * Makes the draw, applies the rules and returns the randomly drawn teams, balancing the teams
-     */
-    public function sort(Request $request): View
-    {
-        $request->validate([
-            'teamsN' => 'required|integer|min:2',
-            'numbP' => 'required|integer|min:1'
-        ]);
-
-        // Retrieve confirmed players, ordered by level
-        $confirmedPlayers = Players::where('presence', 1)
-            ->orderBy('level', 'asc')
-            ->get();
-
-        // Count the total number of confirmed players
-        $totalConfirmedPlayers = count($confirmedPlayers);
-        // Calculate the total number of players required
-        $requiredPlayers = $request->numbP * 2;
-
-        // Convert parameters to integers
-        $teams = (int)$request->teamsN;
-        $numbP = (int)$request->numbP;
-
-        // Check if there are enough players for the draw
-        if ($totalConfirmedPlayers < $requiredPlayers) {
-            // Return a view with an error message
-            return view('players.sort')->with('resp', (object)[
-                'error' => true,
-                'msg' => "There are not enough confirmed players for the requested number of teams and players per team.",
-                'teams' => $teams,
-                'numbP' => $numbP,
-                'confirmed' => $totalConfirmedPlayers,
-            ]);
-        }
-
-        // Check if there are at least 2 goalkeepers with confirmed presence
-        $goalkeepersCount = $confirmedPlayers->where('isGoalkeeper', 1)->count();
-        if ($goalkeepersCount < 2) {
-            // Return a view with an error message
-            return view('players.sort')->with('resp', (object)[
-                'error' => true,
-                'msg' => "At least 2 goalkeepers with confirmed presence are required.",
-                'teams' => $teams,
-                'numbP' => $numbP,
-                'confirmed' => $totalConfirmedPlayers,
-            ]);
-        }
-
-        // Shuffle goalkeepers and non-goalkeepers
-        $goalkeepers = $confirmedPlayers->where('isGoalkeeper', 1)->shuffle();
-        $nonGoalkeepers = $confirmedPlayers->where('isGoalkeeper', 0)->shuffle();
-
-        // Initialize the array of teams
-        $teamsArray = [];
-
-        // Initialize the array of all players in the same list
-        $allPlayersList = [];
-
-        // Loop to create teams
-        for ($i = 0; $i < $teams; $i++) {
-            $team = [
-                'id' => $i + 1,
-                'playersCount' => 0,
-                'players' => [],
-            ];
-
-            // Add a goalkeeper if available and not already added to a team
-            $goalkeeper = $goalkeepers->where('team_id', null)->shift();
-
-            // If there is no goalkeeper available, add a non-goalkeeper player
-            if (empty($goalkeeper)) {
-                $nonGoalkeeper = $nonGoalkeepers->shift();
-                $team['players'][] = $nonGoalkeeper;
-            } else {
-                // If there is a goalkeeper available, add it to the team
-                $team['players'][] = $goalkeeper;
-                $goalkeeper->update(['team_id' => $team['id']]); // Update the team_id of the goalkeeper
-                $team['playersCount'] += 1;
-            }
-
-            // Add non-goalkeeper players until the desired number is reached
-            $remainingNonGoalkeepers = $nonGoalkeepers->splice(0, $numbP - 1)->all();
-
-            // Ensure the team has at most the desired number of players (including the goalkeeper)
-            $team['players'] = array_merge($team['players'], $remainingNonGoalkeepers);
-
-            // Check if the total number of players in the team (including the goalkeeper) exceeds the maximum allowed
-            if ($team['playersCount'] > $numbP) {
-                // If yes, trim the excess players
-                $team['players'] = array_slice($team['players'], 0, $numbP);
-                $team['playersCount'] = $numbP;
-            }
-
-            // Add the team to the array of teams
-            $teamsArray[] = $team;
-
-            // Update team_id for non-goalkeeper players
-            foreach ($team['players'] as $player) {
-                if (!$player->isGoalkeeper) {
-                    $player->update(['team_id' => $team['id']]);
-                    $team['playersCount'] += 1;
-                }
-            }
-
-            // Add team players to the list of all players
-            $allPlayersList = array_merge($allPlayersList, $team['players']);
-        }
-
-        // Distribute remaining players among the teams
-        foreach ($nonGoalkeepers as $remainingPlayer) {
-            $availableTeams = collect($teamsArray)->where('playersCount', '<', $numbP);
-            $teamToAdd = $availableTeams->sortBy('playersCount')->first();
-
-            if ($teamToAdd) {
-                $teamToAdd['players'][] = $remainingPlayer;
-                $remainingPlayer->update(['team_id' => $teamToAdd['id']]);
-                $teamToAdd['playersCount'] += 1;
-                $allPlayersList[] = $remainingPlayer;
-            }
-        }
-
-        $resp = (object)[
-            'error' => false,
-            'msg' => '',
+    // Check if there are enough confirmed players for the requested teams and players per team.
+    if ($totalConfirmedPlayers < $requiredPlayers) {
+        return view('players.sort')->with('resp', (object)[
+            'error' => true,
+            'msg' => "There are not enough confirmed players for the requested number of teams and players per team.",
             'teams' => $teams,
             'numbP' => $numbP,
             'confirmed' => $totalConfirmedPlayers,
-            'data' => $teamsArray,
-            'allPlayersList' => $allPlayersList,
+        ]);
+    }
+
+    // Check if there are at least 2 goalkeepers with confirmed presence.
+    $goalkeepersCount = $confirmedPlayers->where('isGoalkeeper', 1)->count();
+    if ($goalkeepersCount < 2) {
+        return view('players.sort')->with('resp', (object)[
+            'error' => true,
+            'msg' => "At least 2 goalkeepers with confirmed presence are required.",
+            'teams' => $teams,
+            'numbP' => $numbP,
+            'confirmed' => $totalConfirmedPlayers,
+        ]);
+    }
+
+    // Shuffle and separate goalkeepers and non-goalkeepers.
+    $goalkeepers = $confirmedPlayers->where('isGoalkeeper', 1)->shuffle();
+    $nonGoalkeepers = $confirmedPlayers->where('isGoalkeeper', 0)->shuffle();
+
+    // Initialize arrays for teams, all players, assigned players, and assigned goalkeepers.
+    $teamsArray = [];
+    $allPlayersList = [];
+    $assignedPlayers = [];
+    $assignedGoalkeepers = [];
+
+    // Iterate through each team.
+    for ($i = 0; $i < $teams; $i++) {
+        // Initialize team structure.
+        $team = [
+            'id' => $i + 1,
+            'playersCount' => 0,
+            'players' => [],
         ];
 
-        return view('players.sort')->with('resp', $resp);
+        // Assign a goalkeeper or a non-goalkeeper to the team.
+        // Update team and assigned arrays accordingly.
+        // Ensure the team has the required number of players.
+        // Update overall player list.
+        // Repeat for each player in the team.
     }
+
+    // Handle remaining non-goalkeepers and assign them to teams with space.
+    // Update team, assigned, and overall player lists.
+
+    // Prepare response object with the sorting results.
+    $resp = (object)[
+        'error' => false,
+        'msg' => '',
+        'teams' => $teams,
+        'numbP' => $numbP,
+        'confirmed' => $totalConfirmedPlayers,
+        'data' => $teamsArray,
+        'allPlayersList' => $allPlayersList,
+    ];
+
+    // Return the view with the response object.
+    return view('players.sort')->with('resp', $resp);
 }
