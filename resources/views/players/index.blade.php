@@ -21,17 +21,20 @@
             No data found!
         @else
             <table class="table table-bordered">
-                <tr>
-                    <th>ID</th>
-                    <th>Name</th>
-                    <th>Level</th>
-                    <th>Goalkeeper</th>
-                    <th>Presence</th>
-                    <th width="280px">Actions</th>
-                </tr>
+                <thead>
+                    <tr>
+                        <th scope="col">ID</th>
+                        <th scope="col">Name</th>
+                        <th scope="col">Level</th>
+                        <th scope="col">Goalkeeper</th>
+                        <th scope="col">Presence</th>
+                        <th scope="col" width="280px">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
                 @foreach ($players as $player)
                     <tr>
-                        <td>{{ ++$i }}</td>
+                        <td scope="row">{{ ++$i }}</td>
                         <td>{{ $player->name }}</td>
                         <td>{{ $player->level }}</td>
                         @if($player->isGoalkeeper == 0)
