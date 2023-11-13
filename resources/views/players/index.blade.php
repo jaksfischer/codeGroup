@@ -9,7 +9,7 @@
                 <h4>Players details</h4>
             </div>
             <div class="col-12">
-                <a class="btn btn-success" href="{{ route('players.create') }}"> Create New Player</a>    <a class="btn btn-success" href="{{ route('teams') }}"> Sort teams</a>
+                <a class="btn btn-success" href="{{ route('players.create') }}"> Create New Player</a> <a class="btn btn-success" href="{{ route('teams') }}"> Sort teams</a>
             </div>
         </div>
         @if ($message = Session::get('success'))
