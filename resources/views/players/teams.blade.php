@@ -9,7 +9,7 @@
                 <h4>Sort teams</h4>
             </div>
             <div class="col-12">
-                <a class="btn btn-success" href="{{ route('players.create') }}"> Create New Player</a>    <a class="btn btn-success" href="{{ route('teams') }}"> Sort teams</a>
+                <a class="btn btn-success" href="{{ route('players.create') }}"> Create New Player</a>    <a class="btn btn-success" href="{{ route('teams') }}"> Sort teams</a> <a class="btn btn-primary" href="{{ route('players.index') }}"> Back to Home</a>
             </div>
             <form action="{{ route('sort') }}" method="POST">
                 @csrf
