@@ -144,38 +144,65 @@ class PlayersController extends Controller
 
         // Loop to create teams
         for ($i = 0; $i < $teams; $i++) {
-            $team = [];
+            $team = [
+                'id' => $i + 1,
+                'playersCount' => 0,
+                'players' => [],
+            ];
 
-            // Add a goalkeeper if available
-            $goalkeeper = $goalkeepers->shift();
+            // Add a goalkeeper if available and not already added to a team
+            $goalkeeper = $goalkeepers->where('team_id', null)->shift();
 
-            // Add a non-goalkeeper player if there is no goalkeeper available
+            // If there is no goalkeeper available, add a non-goalkeeper player
             if (empty($goalkeeper)) {
                 $nonGoalkeeper = $nonGoalkeepers->shift();
-                $team['players'] = [$nonGoalkeeper];
+                $team['players'][] = $nonGoalkeeper;
             } else {
                 // If there is a goalkeeper available, add it to the team
-                $team['players'] = [$goalkeeper];
+                $team['players'][] = $goalkeeper;
+                $goalkeeper->update(['team_id' => $team['id']]); // Update the team_id of the goalkeeper
+                $team['playersCount'] += 1;
             }
 
             // Add non-goalkeeper players until the desired number is reached
-            $team['players'] = array_merge($team['players'], $nonGoalkeepers->splice(0, $numbP - 1)->all());
+            $remainingNonGoalkeepers = $nonGoalkeepers->splice(0, $numbP - 1)->all();
 
-            // Ensure the team has at most the desired number of players
-            $team['players'] = array_slice($team['players'], 0, $numbP);
+            // Ensure the team has at most the desired number of players (including the goalkeeper)
+            $team['players'] = array_merge($team['players'], $remainingNonGoalkeepers);
+
+            // Check if the total number of players in the team (including the goalkeeper) exceeds the maximum allowed
+            if ($team['playersCount'] > $numbP) {
+                // If yes, trim the excess players
+                $team['players'] = array_slice($team['players'], 0, $numbP);
+                $team['playersCount'] = $numbP;
+            }
 
             // Add the team to the array of teams
             $teamsArray[] = $team;
+
+            // Update team_id for non-goalkeeper players
+            foreach ($team['players'] as $player) {
+                if (!$player->isGoalkeeper) {
+                    $player->update(['team_id' => $team['id']]);
+                    $team['playersCount'] += 1;
+                }
+            }
 
             // Add team players to the list of all players
             $allPlayersList = array_merge($allPlayersList, $team['players']);
         }
 
         // Distribute remaining players among the teams
-        foreach ($nonGoalkeepers as $key => $remainingPlayer) {
-            $teamsArray[$key % $teams]['players'][] = $remainingPlayer;
-            // Add remaining players to the list of all players
-            $allPlayersList[] = $remainingPlayer;
+        foreach ($nonGoalkeepers as $remainingPlayer) {
+            $availableTeams = collect($teamsArray)->where('playersCount', '<', $numbP);
+            $teamToAdd = $availableTeams->sortBy('playersCount')->first();
+
+            if ($teamToAdd) {
+                $teamToAdd['players'][] = $remainingPlayer;
+                $remainingPlayer->update(['team_id' => $teamToAdd['id']]);
+                $teamToAdd['playersCount'] += 1;
+                $allPlayersList[] = $remainingPlayer;
+            }
         }
 
         $resp = (object)[
