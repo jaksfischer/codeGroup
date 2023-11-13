@@ -13,7 +13,7 @@ class PlayersController extends Controller
      */
     public function index(): View
     {
-        $players = Players::latest()->paginate(30);
+        $players = Players::latest()->paginate(10);
         return view('players.index',compact('players'))
             ->with('i', (request()->input('page', 1) - 1) * 5);
     }
